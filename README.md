@@ -92,6 +92,18 @@ DeerFlow has newly integrated the intelligent search and crawling toolset indepe
 
 ## One-Line Agent Setup
 
+## App-Key control plane
+
+Platform administrators can create, edit, disable, and revoke App-Key profiles in the
+Workspace **App Keys** page (or through `/api/v1/app-keys`). Credentials are stored only as SHA-256 hashes and are revoked by
+updating the shared database; the initial implementation deliberately uses no local or
+Redis cache, so every Gateway instance observes a committed revocation on its next request.
+App-Key callers may only invoke `GET /api/models`, `GET /api/skills`, `GET /api/agents`,
+and the stateless `/api/runs/stream` / `/api/runs/wait` endpoints. Discovery and run
+requests are filtered by the Profile's Agent, model, and skill allowlists.
+See the [App Key control-plane design](docs/plans/2026-08-02-app-key-control-plane-design.md)
+for the security model, API boundary, and operational guidance.
+
 If you use Claude Code, Codex, Cursor, Windsurf, or another coding agent, you can hand it the setup instructions in one sentence:
 
 ```text
@@ -263,6 +275,14 @@ The checkpoint storage settings `database.checkpoint_channel_mode` and
 `database.checkpoint_delta.snapshot_frequency` (default `10`) are exceptions:
 both are frozen when the process first builds an agent (including through
 `DeerFlowClient`) and require a process restart to change safely.
+
+The optional `database.checkpoint_cache` section (delta channel mode only)
+caches materialized checkpoint histories: `type` is `memory` (default) or
+`redis`, and `max_entries: 0` disables the cache. The `redis` backend is
+Gateway/async-only; the sync TUI/embedded path supports `memory` only. The
+cache is performance-only — results are identical with it disabled — so it is
+never frozen and workers sharing one checkpoint database may safely run
+different cache settings.
 
 > [!TIP]
 > On Linux, if Docker-based commands fail with `permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock`, add your user to the `docker` group and re-login before retrying. See [CONTRIBUTING.md](CONTRIBUTING.md#linux-docker-daemon-permission-denied) for the full fix.
